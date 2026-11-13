@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Own the Data, Own the Control Plane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a leadership brief that reads top to bottom. One argument, one layered diagram, then what we build, phases and the ask. */
+:root {
+  --bg: #f3f4f2;
+  --surface: #ffffff;
+  --ink: #1a2230;
+  --muted: #5a6474;
+  --line: #d6dadf;
+  --accent: #b5741a;      /* brass: the control plane */
+  --accent-soft: #f4e6cf;
+  --data: #2f5d6e;        /* deep teal: the data foundation */
+  --data-soft: #dde9ec;
+  --app: #8a93a1;         /* grey: apps and agents that come and go */
+  --app-soft: #eceef1;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d; --surface: #1a2029; --ink: #e7eaee; --muted: #9aa4b2; --line: #2c3440;
+    --accent: #e0a24a; --accent-soft: #3a2c17;
+    --data: #7fb3c4; --data-soft: #1c2f36;
+    --app: #8a93a1; --app-soft: #232a34;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d; --surface: #1a2029; --ink: #e7eaee; --muted: #9aa4b2; --line: #2c3440;
+  --accent: #e0a24a; --accent-soft: #3a2c17;
+  --data: #7fb3c4; --data-soft: #1c2f36;
+  --app: #8a93a1; --app-soft: #232a34;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+.prose { max-width: 66ch; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3.1rem); font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 700; }
+h3 { font-size: 1.08rem; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--data); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.kicker { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+
+header.hero { padding: 56px 0 40px; border-bottom: 1px solid var(--line); }
+header.hero .stack { display: grid; gap: 18px; }
+.lede { font-size: 1.2rem; color: var(--muted); max-width: 60ch; }
+.thesis {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px;
+}
+.thesis div { padding: 14px 16px; border-radius: 6px; border-left: 4px solid; background: var(--surface); }
+.thesis .t-app { border-color: var(--app); }
+.thesis .t-cp { border-color: var(--accent); }
+.thesis .t-data { border-color: var(--data); }
+.thesis b { display: block; font-family: var(--font-display); font-size: 1rem; }
+.thesis span { font-size: 0.92rem; color: var(--muted); }
+
+section { padding: 48px 0; border-bottom: 1px solid var(--line); }
+section .stack { display: grid; gap: 18px; }
+
+blockquote {
+  margin: 0; padding: 18px 22px; background: var(--surface); border-left: 4px solid var(--accent);
+  border-radius: 0 6px 6px 0; font-size: 1.08rem;
+}
+blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 0.85rem; color: var(--muted); }
+
+.shifts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 8px; align-content: start; }
+.card p { font-size: 0.95rem; color: var(--muted); }
+
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 640px; height: auto; }
+.diagram svg text { font-family: var(--font-body); }
+
+.compare { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 0.95rem; }
+.compare th, .compare td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.compare thead th { font-family: var(--font-display); font-size: 0.9rem; background: var(--app-soft); }
+.compare thead th:last-child { background: var(--accent-soft); }
+.compare td:first-child { font-weight: 600; white-space: nowrap; }
+.compare tr:last-child td { border-bottom: none; }
+.table-wrap { overflow-x: auto; }
+
+.layers { display: grid; gap: 14px; }
+.layer { display: grid; grid-template-columns: 200px 1fr; gap: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
+.layer.cp { border-left: 5px solid var(--accent); }
+.layer.data { border-left: 5px solid var(--data); }
+.layer ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.95rem; }
+.layer .tag { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+
+.phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; counter-reset: ph; }
+.phase { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 10px; align-content: start; }
+.phase .when { font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent); }
+.phase ul { margin: 0; padding-left: 18px; font-size: 0.93rem; display: grid; gap: 4px; }
+.phase .out { font-size: 0.88rem; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
+
+.objections { display: grid; gap: 12px; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 18px; }
+details[open] { padding-bottom: 18px; }
+summary { cursor: pointer; font-weight: 600; }
+details p { margin-top: 10px; color: var(--muted); font-size: 0.95rem; }
+
+.ask { background: var(--ink); color: var(--bg); border-radius: 10px; padding: 28px; display: grid; gap: 14px; }
+.ask h2 { color: var(--bg); }
+.ask ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.ask .kicker { color: var(--accent); }
+
+footer { padding: 32px 0 56px; font-size: 0.85rem; color: var(--muted); }
+footer ul { padding-left: 18px; margin: 8px 0 0; display: grid; gap: 4px; }
+
+@media (max-width: 760px) {
+  .thesis, .phases { grid-template-columns: 1fr; }
+  .layer { grid-template-columns: 1fr; gap: 8px; }
+  body { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap stack">
+    <div class="kicker">Strategy brief · Platform engineering</div>
+    <h1>Own the data. Own the control plane. Let the apps come and go.</h1>
+    <p class="lede">AI agents are becoming the main users of our software. When that happens, value moves out of individual applications and into two places: the data they act on, and the layer that decides what any agent or person is allowed to do. We should build both on purpose.</p>
+    <div class="thesis" aria-label="The three-layer thesis">
+      <div class="t-app"><b>Apps &amp; agents</b><span>Many, fast-changing, replaceable. Buy, build or generate.</span></div>
+      <div class="t-cp"><b>Control plane</b><span>One governed way to act: identity, policy, tools, approvals, audit.</span></div>
+      <div class="t-data"><b>Kingdom of data</b><span>Owned, cataloged, trusted. The asset that compounds.</span></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap stack">
+    <div class="kicker">01 · What is changing</div>
+    <h2>The business logic is leaving the application</h2>
+    <p class="prose">For twenty years we bought and built applications that bundled three things: a database, business rules, and screens for people to click. Agents break that bundle. They don't need screens, and they can apply rules across many systems at once.</p>
+    <blockquote>
+      “The business logic is all going to these agents… They are going to update multiple databases and all the logic will be in the AI tier.”
+      <cite>Satya Nadella, Microsoft CEO, B2G podcast, December 2024</cite>
+    </blockquote>
+    <div class="shifts">
+      <div class="card"><h3>Agents are the new users</h3><p>Agents can call a platform far more often than people ever did, and in parallel. Industry now calls this “agent experience”: can an agent find a capability, call it reliably and recover when it fails?</p></div>
+      <div class="card"><h3>Software is getting cheap</h3><p>Generating a screen, a workflow or an integration is far faster than it used to be. Code we write once is less of a moat than it used to be.</p></div>
+      <div class="card"><h3>Risk moves to the action</h3><p>When an agent can change a cluster, a firewall rule or a customer record, the question regulators ask is “who allowed that, and where is the record?” Each app answering that differently is not defensible.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <div class="kicker">02 · The model</div>
+    <h2>Three layers, with very different lifespans</h2>
+    <p class="prose">Apps and agents on top will churn. The two layers underneath should be stable, owned by us, and built to outlast any vendor or model.</p>
+    <div class="diagram" role="img" aria-label="Diagram: apps and agents on top call through a single control plane, which governs access to the data foundation and to systems of record.">
+      <svg viewBox="0 0 900 470" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .lbl { fill: var(--ink); font-size: 15px; font-weight: 600; }
+          .sub { fill: var(--muted); font-size: 12.5px; }
+          .chip-t { fill: var(--ink); font-size: 12.5px; }
+          .side { fill: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+        </style>
+        <!-- Top: apps and agents -->
+        <rect x="20" y="20" width="760" height="110" rx="10" fill="var(--app-soft)" stroke="var(--app)" stroke-dasharray="5 4"/>
+        <text x="40" y="46" class="lbl">Apps &amp; agents</text>
+        <text x="40" y="64" class="sub">Replaceable · vendor, in-house or generated</text>
+        <g>
+          <rect x="40" y="78" width="120" height="36" rx="6" fill="var(--surface)" stroke="var(--line)"/><text x="100" y="101" text-anchor="middle" class="chip-t">Ops agents</text>
+          <rect x="172" y="78" width="120" height="36" rx="6" fill="var(--surface)" stroke="var(--line)"/><text x="232" y="101" text-anchor="middle" class="chip-t">Copilots</text>
+          <rect x="304" y="78" width="120" height="36" rx="6" fill="var(--surface)" stroke="var(--line)"/><text x="364" y="101" text-anchor="middle" class="chip-t">Vendor SaaS</text>
+          <rect x="436" y="78" width="120" height="36" rx="6" fill="var(--surface)" stroke="var(--line)"/><text x="496" y="101" text-anchor="middle" class="chip-t">Internal portals</text>
+          <rect x="568" y="78" width="190" height="36" rx="6" fill="var(--surface)" stroke="var(--line)"/><text x="663" y="101" text-anchor="middle" class="chip-t">People in chat / CLI</text>
+        </g>
+        <!-- arrows down -->
+        <g stroke="var(--muted)" stroke-width="1.5" fill="none">
+          <path d="M100 130 V158"/><path d="M232 130 V158"/><path d="M364 130 V158"/><path d="M496 130 V158"/><path d="M663 130 V158"/>
+        </g>
+        <!-- Control plane -->
+        <rect x="20" y="160" width="760" height="140" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+        <text x="40" y="188" class="lbl">Control plane</text>
+        <text x="40" y="206" class="sub">The only way to act · one set of rules for people and agents</text>
+        <g>
+          <rect x="40" y="222" width="138" height="56" rx="6" fill="var(--surface)" stroke="var(--accent)"/><text x="109" y="246" text-anchor="middle" class="chip-t">Identity for</text><text x="109" y="264" text-anchor="middle" class="chip-t">agents &amp; people</text>
+          <rect x="188" y="222" width="138" height="56" rx="6" fill="var(--surface)" stroke="var(--accent)"/><text x="257" y="246" text-anchor="middle" class="chip-t">Policy &amp;</text><text x="257" y="264" text-anchor="middle" class="chip-t">entitlements</text>
+          <rect x="336" y="222" width="138" height="56" rx="6" fill="var(--surface)" stroke="var(--accent)"/><text x="405" y="246" text-anchor="middle" class="chip-t">Tool registry</text><text x="405" y="264" text-anchor="middle" class="chip-t">(MCP gateway)</text>
+          <rect x="484" y="222" width="138" height="56" rx="6" fill="var(--surface)" stroke="var(--accent)"/><text x="553" y="246" text-anchor="middle" class="chip-t">Approvals &amp;</text><text x="553" y="264" text-anchor="middle" class="chip-t">human-in-loop</text>
+          <rect x="632" y="222" width="128" height="56" rx="6" fill="var(--surface)" stroke="var(--accent)"/><text x="696" y="246" text-anchor="middle" class="chip-t">Audit &amp;</text><text x="696" y="264" text-anchor="middle" class="chip-t">evidence</text>
+        </g>
+        <!-- arrows down -->
+        <g stroke="var(--muted)" stroke-width="1.5" fill="none">
+          <path d="M200 300 V328"/><path d="M400 300 V328"/><path d="M600 300 V328"/>
+        </g>
+        <!-- Data foundation -->
+        <rect x="20" y="330" width="760" height="120" rx="10" fill="var(--data-soft)" stroke="var(--data)" stroke-width="2"/>
+        <text x="40" y="358" class="lbl">Kingdom of data</text>
+        <text x="40" y="376" class="sub">Owned · cataloged · lineage-tracked · meaning defined once</text>
+        <g>
+          <rect x="40" y="392" width="170" height="40" rx="6" fill="var(--surface)" stroke="var(--data)"/><text x="125" y="417" text-anchor="middle" class="chip-t">Inventory &amp; topology</text>
+          <rect x="222" y="392" width="170" height="40" rx="6" fill="var(--surface)" stroke="var(--data)"/><text x="307" y="417" text-anchor="middle" class="chip-t">Config &amp; change history</text>
+          <rect x="404" y="392" width="170" height="40" rx="6" fill="var(--surface)" stroke="var(--data)"/><text x="489" y="417" text-anchor="middle" class="chip-t">Telemetry &amp; incidents</text>
+          <rect x="586" y="392" width="174" height="40" rx="6" fill="var(--surface)" stroke="var(--data)"/><text x="673" y="417" text-anchor="middle" class="chip-t">Controls &amp; ownership</text>
+        </g>
+        <!-- Lifespan axis -->
+        <text x="800" y="70" class="side">months</text>
+        <text x="800" y="235" class="side">years</text>
+        <text x="800" y="395" class="side">decades</text>
+        <path d="M840 85 V375" stroke="var(--muted)" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker></defs>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <div class="kicker">03 · Why it matters here</div>
+    <h2>Today vs. the world we should build</h2>
+    <div class="table-wrap">
+      <table class="compare">
+        <thead><tr><th scope="col"></th><th scope="col">Today: app by app</th><th scope="col">With a data kingdom + control plane</th></tr></thead>
+        <tbody>
+          <tr><td>Adding an agent</td><td>New integrations, new credentials, new review for every tool it touches</td><td>Register once; it inherits identity, policy and audit</td></tr>
+          <tr><td>Answering “who did this?”</td><td>Stitch logs from each system</td><td>One evidence trail across people and agents</td></tr>
+          <tr><td>Data</td><td>Copied into each app, defined differently in each</td><td>Defined once, owned by us, readable by any approved consumer</td></tr>
+          <tr><td>Replacing a vendor or model</td><td>Migration project; logic trapped inside the product</td><td>Swap the top layer; data and rules stay put</td></tr>
+          <tr><td>NFRs &amp; compliance</td><td>Re-proven per application</td><td>Enforced centrally and inherited</td></tr>
+          <tr><td>Shadow AI</td><td>Teams wire agents straight to systems</td><td>The governed path is also the easiest path</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose">The risk of not doing this is that agents connect directly to hundreds of systems, each in its own language. That is ungoverned, hard to audit and impossible to change safely.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <div class="kicker">04 · What we build</div>
+    <h2>Two durable layers, concretely</h2>
+    <div class="layers">
+      <div class="layer cp">
+        <div><h3>Control plane</h3><div class="tag">how anything acts</div></div>
+        <ul>
+          <li><b>Identity for agents:</b> every agent is a named principal with an owner, scope and expiry. No shared service accounts.</li>
+          <li><b>Policy as code:</b> entitlements, change windows and blast-radius limits evaluated on every call.</li>
+          <li><b>Tool registry:</b> one catalog of approved capabilities (MCP and APIs), versioned and tested, so agents call tools, not raw systems.</li>
+          <li><b>Approvals:</b> risk-tiered human-in-loop; low-risk actions run, high-risk actions wait for a person.</li>
+          <li><b>Audit &amp; evidence:</b> every request, decision and result recorded in a form auditors can use.</li>
+          <li><b>Evaluation:</b> agents and tools tested against real scenarios before they get more autonomy.</li>
+        </ul>
+      </div>
+      <div class="layer data">
+        <div><h3>Kingdom of data</h3><div class="tag">what everything knows</div></div>
+        <ul>
+          <li><b>Single inventory:</b> clusters, services, owners and dependencies across public and private cloud.</li>
+          <li><b>Change and config history:</b> what changed, when, by whom (person or agent).</li>
+          <li><b>Operational signals:</b> telemetry, incidents and vulnerabilities joined to the same inventory.</li>
+          <li><b>Shared meaning:</b> “application”, “owner”, “environment” defined once and used everywhere.</li>
+          <li><b>Data products with owners:</b> each dataset has an accountable team, quality checks and lineage.</li>
+          <li><b>Access through the control plane:</b> the same policies govern reading data and taking action.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="prose">The proposal is to treat these two layers as the product, and every portal, agent or vendor tool as a consumer of them.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <div class="kicker">05 · How we get there</div>
+    <h2>Phased, with value at each step</h2>
+    <div class="phases">
+      <div class="phase">
+        <div class="when">Phase 1</div>
+        <h3>Foundations</h3>
+        <ul>
+          <li>Unified inventory for one estate</li>
+          <li>Tool registry with a first set of governed operations</li>
+          <li>Agent identity and central audit</li>
+        </ul>
+        <div class="out">Outcome: one agent workflow runs end to end on governed rails.</div>
+      </div>
+      <div class="phase">
+        <div class="when">Phase 2</div>
+        <h3>Policy &amp; scale</h3>
+        <ul>
+          <li>Policy as code and risk-tiered approvals</li>
+          <li>Change history and telemetry joined to inventory</li>
+          <li>Onboard other teams' agents</li>
+        </ul>
+        <div class="out">Outcome: new agents onboard without a new security review per tool.</div>
+      </div>
+      <div class="phase">
+        <div class="when">Phase 3</div>
+        <h3>Default path</h3>
+        <ul>
+          <li>Control plane mandatory for automated change</li>
+          <li>Vendor tools consume our data, not the reverse</li>
+          <li>Evaluation gates for autonomy</li>
+        </ul>
+        <div class="out">Outcome: apps and models are swappable; data and rules stay ours.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <div class="kicker">06 · Fair challenges</div>
+    <h2>What leadership will reasonably ask</h2>
+    <div class="objections">
+      <details open><summary>Isn't this just another platform rewrite?</summary><p>No. We keep existing systems of record. The control plane sits in front of them and the data layer reads from them. Phase 1 wraps a small number of high-value operations; it doesn't replace anything.</p></details>
+      <details><summary>Won't vendors give us this out of the box?</summary><p>Each vendor will offer a control plane for its own product. Ours has to span all of them, plus our private cloud, under our policies. That cross-vendor layer is the one thing no vendor is positioned to own for us.</p></details>
+      <details><summary>Agents work fine with existing tools. Why build anything new?</summary><p>Agents can use existing tools, and good tools for agents tend to be good for people too. The gap is governance: consistent identity, policy and evidence across every tool. That part doesn't come with any single tool.</p></details>
+      <details><summary>What if the AI wave slows down?</summary><p>Then we still have a clean inventory, one audit trail, and centrally enforced controls. Every part of this pays off for human operators and compliance even with no agents at all.</p></details>
+    </div>
+  </div>
+</section>
+
+<section style="border-bottom:none">
+  <div class="wrap">
+    <div class="ask">
+      <div class="kicker">The ask</div>
+      <h2>Fund the two layers that outlast the apps</h2>
+      <ol>
+        <li>Name the control plane and the data foundation as strategic platforms with dedicated ownership.</li>
+        <li>Approve Phase 1, scoped to one estate and one end-to-end agent workflow.</li>
+        <li>Set a direction now: new automation and agents act through the control plane by default.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <b>Further reading</b>
+    <ul>
+      <li><a href="https://www.itbrew.com/stories/2025/02/04/will-ai-agents-upend-the-saas-model-as-we-know-it-experts-say-not-quite">Nadella on business logic moving to the AI tier (IT Brew)</a></li>
+      <li><a href="https://biilmann.blog/articles/introducing-ax/">Introducing AX: Why Agent Experience Matters (Mathias Biilmann)</a></li>
+      <li><a href="https://thecuberesearch.com/308-breaking-analysis-nadellas-sacrifice-why-agents-threaten-office-how-microsoft-responds/">Why the logic tier becomes a mediating layer (theCUBE Research)</a></li>
+      <li><a href="https://seangoedecke.com/dont-build-tools-for-ai-agents/">Counterpoint: Don't build tools for AI agents (Sean Goedecke)</a></li>
+    </ul>
+  </div>
+</footer>
+
+</body>
+</html>
