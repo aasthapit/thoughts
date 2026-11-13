@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why intent.md: The Missing Artifact in the AI-Native SDLC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fbfaf7; --surface: #ffffff; --ink: #1f1e1b; --quiet: #6b6862; --edge: #a9a59c;
+    --grid: #e4e1da; --accent: #2b6cb0; --accent-bg: rgba(43,108,176,.10); --bad: #c53030;
+    --tint: #f0efec; --code-bg: #f3f1ec; --rule: #e4e1da;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1918; --surface: #222120; --ink: #ecebe7; --quiet: #a3a09a; --edge: #75726b;
+      --grid: #3a3836; --accent: #6aa7e6; --accent-bg: rgba(106,167,230,.14); --bad: #f07171;
+      --tint: #2c2b29; --code-bg: #272624; --rule: #3a3836;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 18px/1.65 "Source Serif 4", Georgia, serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; display: grid;
+    grid-template-columns: 220px minmax(0, 760px); gap: 56px; justify-content: center; }
+  nav.toc { position: sticky; top: 32px; align-self: start; padding-top: 120px;
+    font: 13px/1.5 Inter, system-ui, sans-serif; }
+  nav.toc .label { text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: var(--quiet); margin-bottom: 10px; font-weight: 600; }
+  nav.toc a { display: block; color: var(--quiet); text-decoration: none; padding: 5px 0 5px 12px; border-left: 2px solid var(--rule); }
+  nav.toc a:hover { color: var(--ink); border-left-color: var(--accent); }
+  article { padding: 72px 0 96px; }
+  .kicker { font: 600 12px/1 Inter, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  h1 { font: 700 44px/1.12 Inter, system-ui, sans-serif; letter-spacing: -.02em; margin: 14px 0 16px; }
+  .byline { font: 14px Inter, sans-serif; color: var(--quiet); margin-bottom: 40px; }
+  h2 { font: 650 26px/1.25 Inter, system-ui, sans-serif; letter-spacing: -.01em; margin: 64px 0 16px; scroll-margin-top: 24px; }
+  p, li { color: var(--ink); }
+  a { color: var(--accent); }
+  strong { font-weight: 600; }
+  .tldr { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
+    border-radius: 10px; padding: 22px 26px; margin: 0 0 20px; }
+  .tldr h2 { margin: 0 0 8px; font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+  .tldr p { margin: 0; }
+  blockquote { margin: 20px 0; padding: 4px 0 4px 20px; border-left: 3px solid var(--edge); color: var(--quiet); font-style: italic; }
+  blockquote strong { color: var(--ink); font-style: normal; }
+  code { font: 14.5px "JetBrains Mono", ui-monospace, monospace; background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 22px 0; font: 14.5px/1.5 Inter, sans-serif; }
+  th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; color: var(--quiet); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  tr.hl td { background: var(--accent-bg); }
+  .table-scroll { overflow-x: auto; }
+  figure { margin: 30px 0 34px; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 18px 18px 12px; }
+  figure svg { width: 100%; height: auto; display: block; font-family: Inter, system-ui, sans-serif; }
+  figcaption { font: 13px/1.5 Inter, sans-serif; color: var(--quiet); padding: 10px 6px 4px; border-top: 1px solid var(--rule); margin-top: 10px; }
+  svg .t { fill: var(--ink); } svg .q { fill: var(--quiet); }
+  svg .box { fill: none; stroke: var(--edge); stroke-width: 1.25; }
+  svg .main { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 2; }
+  svg .ln { fill: none; stroke: var(--edge); stroke-width: 1.25; }
+  svg .bad { fill: none; stroke: var(--bad); stroke-width: 1.5; }
+  svg .grid { stroke: var(--grid); }
+  svg .tint { fill: var(--tint); stroke: var(--edge); stroke-width: 1.25; }
+  svg .hlq { fill: var(--accent-bg); }
+  svg .b { font-weight: 600; }
+  svg .title { font-size: 15px; font-weight: 600; fill: var(--ink); }
+  ol.value { counter-reset: v; list-style: none; padding: 0; }
+  ol.value li { counter-increment: v; position: relative; padding-left: 52px; margin: 0 0 18px; }
+  ol.value li::before { content: counter(v); position: absolute; left: 0; top: 2px; width: 34px; height: 34px; border-radius: 50%;
+    background: var(--accent-bg); color: var(--accent); font: 600 15px/34px Inter, sans-serif; text-align: center; }
+  .codebox { position: relative; margin: 22px 0; }
+  pre { background: var(--code-bg); border: 1px solid var(--rule); border-radius: 10px; padding: 20px 22px; overflow-x: auto;
+    font: 14px/1.6 "JetBrains Mono", ui-monospace, monospace; margin: 0; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .copy { position: absolute; top: 10px; right: 10px; font: 600 12px Inter, sans-serif; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+  .copy:hover { border-color: var(--accent); }
+  .callout { background: var(--accent-bg); border-radius: 10px; padding: 16px 20px; margin: 20px 0; }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 20px; }
+  .card h3 { font: 600 13px Inter, sans-serif; text-transform: uppercase; letter-spacing: .07em; color: var(--quiet); margin: 0 0 8px; }
+  .card ul { margin: 0; padding-left: 18px; font-size: 16px; }
+  .sources { font: 14.5px/1.7 Inter, sans-serif; padding-left: 18px; }
+  footer { font: 13px Inter, sans-serif; color: var(--quiet); border-top: 1px solid var(--rule); margin-top: 64px; padding-top: 20px; }
+  @media (max-width: 980px) {
+    .wrap { grid-template-columns: minmax(0, 760px); }
+    nav.toc { display: none; }
+    article { padding-top: 40px; }
+  }
+  @media (max-width: 600px) {
+    body { font-size: 17px; }
+    h1 { font-size: 32px; }
+    h2 { font-size: 22px; }
+    .metrics { grid-template-columns: 1fr; }
+    figure { padding: 10px 8px 8px; margin-left: -8px; margin-right: -8px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <div class="label">Contents</div>
+  <a href="#problem">The problem</a>
+  <a href="#what">What it is</a>
+  <a href="#chain">The artifact chain</a>
+  <a href="#value">The value</a>
+  <a href="#neighbors">vs its neighbors</a>
+  <a href="#template">Template</a>
+  <a href="#governance">Governance</a>
+  <a href="#limits">Where it doesn't pay</a>
+  <a href="#measure">Measuring &amp; starting</a>
+  <a href="#sources">Sources</a>
+</nav>
+
+<article>
+<div class="kicker">AI-native SDLC</div>
+<h1>Why intent.md: the missing artifact in the AI-native SDLC</h1>
+<div class="byline">Aadesh · November 13, 2026</div>
+
+<div class="tldr">
+  <h2>TL;DR</h2>
+  <p>An <strong>intent.md</strong> is a short, owner-approved file that records <em>why</em> a change exists and <em>what observable outcome</em> it must produce, and never <em>how</em>. Agents can turn a request into a working PR in minutes, so code is no longer the scarce resource. The scarce resource is an agreed, reviewable statement of what was actually wanted. intent.md is that statement: it heads the artifact chain (intent → spec → plan → code), it is accepted through a PR like code, and every downstream artifact can be checked against it.</p>
+</div>
+
+<blockquote><strong>On naming:</strong> intent.md is a convention, not a standard. It shows up in published AI-native SDLC methods and intent-driven development frameworks; other teams put the same content in a spec, a SYSTEM.md or a ticket. The value is in separating <em>what/why</em> from <em>how</em>, not in the filename.</blockquote>
+
+<h2 id="problem">The problem: intent is the new bottleneck</h2>
+<p>Agents have made implementation cheap. They haven't made it cheap to know <em>what</em> to build. When intent has no home, three things go wrong:</p>
+<ul>
+  <li><strong>Intent lives in chat.</strong> Requirements scatter across prompts and session history: invisible to reviewers, gone when the session ends, impossible to hand to the next agent.</li>
+  <li><strong>Agents fill gaps with plausible defaults.</strong> Ask for "photo sharing" and you get something that compiles and passes tests, but embodies scope and architecture decisions nobody made on purpose.</li>
+  <li><strong>Review has nothing to review against.</strong> A reviewer can confirm code is <em>correct</em>, but not that it's the <em>right</em> code, because "right" was never written down.</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 760 280" role="img" aria-label="Without an intent, review checks code; with one, it checks the outcome" font-size="13">
+  <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--edge)"/></marker>
+  <marker id="a1b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--bad)"/></marker></defs>
+  <text class="title" x="24" y="34">Without an intent, review checks code; with one, it checks the outcome</text>
+  <text class="t b" x="24" y="104">Without</text><text class="t b" x="24" y="232">With</text>
+  <line class="grid" x1="24" x2="736" y1="176" y2="176"/>
+  <g class="ln"><path d="M244 100H268" marker-end="url(#a1)"/><path d="M408 100H432" marker-end="url(#a1)"/><path d="M572 100H596" marker-end="url(#a1)"/>
+  <path d="M244 228H268" marker-end="url(#a1)"/><path d="M408 228H432" marker-end="url(#a1)"/><path d="M572 228H596" marker-end="url(#a1)"/></g>
+  <path class="bad" d="M666 128V160H174V128" marker-end="url(#a1b)"/>
+  <text class="t" x="420" y="152" text-anchor="middle" font-size="11.5">wrong thing built, so rework</text>
+  <g text-anchor="middle">
+    <rect class="box" x="104" y="72" width="140" height="56" rx="8"/><text class="t b" x="174" y="96">Request</text><text class="q" x="174" y="113" font-size="11.5">lives in chat</text>
+    <rect class="box" x="268" y="72" width="140" height="56" rx="8"/><text class="t b" x="338" y="96">Agent</text><text class="q" x="338" y="113" font-size="11.5">fills the gaps</text>
+    <rect class="box" x="432" y="72" width="140" height="56" rx="8"/><text class="t b" x="502" y="96">Code and PR</text><text class="q" x="502" y="113" font-size="11.5">looks correct</text>
+    <rect class="box" x="596" y="72" width="140" height="56" rx="8"/><text class="t b" x="666" y="96">Review</text><text class="q" x="666" y="113" font-size="11.5">is it correct?</text>
+    <rect class="main" x="104" y="200" width="140" height="56" rx="8"/><text class="t b" x="174" y="224">intent.md</text><text class="t" x="174" y="241" font-size="11.5">accepted by owner</text>
+    <rect class="box" x="268" y="200" width="140" height="56" rx="8"/><text class="t b" x="338" y="224">Spec and plan</text><text class="q" x="338" y="241" font-size="11.5">trace to intent</text>
+    <rect class="box" x="432" y="200" width="140" height="56" rx="8"/><text class="t b" x="502" y="224">Code and PR</text><text class="q" x="502" y="241" font-size="11.5">scoped by intent</text>
+    <rect class="box" x="596" y="200" width="140" height="56" rx="8"/><text class="t b" x="666" y="224">Review</text><text class="q" x="666" y="241" font-size="11.5">meets the intent?</text>
+  </g>
+</svg>
+<figcaption>Without a written intent, the first time anyone checks the <em>what</em> is at review, after the code already exists.</figcaption>
+</figure>
+
+<p>The result is velocity without direction: fast output followed by expensive rework. Better prompting doesn't fix this. A durable artifact that captures intent <em>before</em> any agent starts does.</p>
+
+<h2 id="what">What intent.md is, and is not</h2>
+<p>intent.md answers two questions: <strong>why</strong> does this change exist, and <strong>what</strong> outcome should it produce? It deliberately refuses to answer <strong>how</strong>.</p>
+<div class="table-scroll"><table>
+  <tr><th>It contains</th><th>It excludes</th></tr>
+  <tr><td>The problem, in user or business terms, with evidence</td><td>Tables, endpoints, schemas</td></tr>
+  <tr><td>The proposed outcome, stated so someone could observe it</td><td>Libraries, frameworks, file paths</td></tr>
+  <tr><td>Who and what is affected</td><td>Code, pseudo-code, architecture</td></tr>
+  <tr><td>Constraints: regulatory, security, timing, compatibility</td><td>Task breakdowns and estimates</td></tr>
+  <tr><td>Open questions the originator can't answer yet</td><td>Solutions disguised as requirements</td></tr>
+</table></div>
+<p>A common template has a header (title, author and team, status <code>draft</code> or <code>accepted</code>, ticket ID) and five sections: <strong>Problem, Proposed outcome, Affected users and systems, Constraints, Open questions.</strong> If the originator insists on a design idea, it goes under Constraints, labeled as an <em>originator preference</em>: visible, but not smuggled in as a requirement.</p>
+<p>It's short (one to two pages), in plain language, and owned by whoever owns the outcome: usually a product owner, but just as often a support engineer, an SRE or a developer.</p>
+
+<h2 id="chain">Where it sits in the artifact chain</h2>
+<figure>
+<svg viewBox="0 0 760 280" role="img" aria-label="Every downstream artifact traces back to an accepted intent" font-size="13">
+  <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--edge)"/></marker></defs>
+  <text class="title" x="36" y="38">Every downstream artifact traces back to an accepted intent</text>
+  <g class="ln"><path d="M190 108H214" marker-end="url(#a2)"/><path d="M368 108H392" marker-end="url(#a2)"/><path d="M546 108H570" marker-end="url(#a2)"/>
+  <path d="M647 144V200" marker-end="url(#a2)"/><path d="M570 228H113V144" marker-end="url(#a2)"/></g>
+  <g text-anchor="middle">
+    <rect class="main" x="36" y="72" width="154" height="72" rx="8"/><text class="t b" x="113" y="96">intent.md</text><text class="t" x="113" y="114" font-size="11.5">Why and what</text><text class="q" x="113" y="130" font-size="11.5">Owner: product owner</text>
+    <rect class="box" x="214" y="72" width="154" height="72" rx="8"/><text class="t b" x="291" y="96">spec.md</text><text class="t" x="291" y="114" font-size="11.5">Acceptance criteria</text><text class="q" x="291" y="130" font-size="11.5">Owner: PO, architect</text>
+    <rect class="box" x="392" y="72" width="154" height="72" rx="8"/><text class="t b" x="469" y="96">plan.md</text><text class="t" x="469" y="114" font-size="11.5">How to build it</text><text class="q" x="469" y="130" font-size="11.5">Owner: tech lead</text>
+    <rect class="box" x="570" y="72" width="154" height="72" rx="8"/><text class="t b" x="647" y="96">Code and tests</text><text class="t" x="647" y="114" font-size="11.5">Criteria become tests</text><text class="q" x="647" y="130" font-size="11.5">Owner: agent and dev</text>
+    <rect class="box" x="570" y="200" width="154" height="56" rx="8"/><text class="t b" x="647" y="224">Production</text><text class="q" x="647" y="242" font-size="11.5">Gated deploy</text>
+    <text class="q" x="341" y="220" font-size="11.5">production signals start a new intent</text>
+  </g>
+</svg>
+<figcaption>The AI-native artifact chain: four committed artifacts and one feedback loop.</figcaption>
+</figure>
+<p>Each artifact is committed and accepted before the next stage starts. The owner accepts the intent; one design session turns it into a spec with checkable acceptance criteria; a plan decides how to build; acceptance criteria become tests; and production signals feed the next intent. Because every link is a committed file, any line of code can be traced back to the outcome it was meant to serve, and any intent forward to the code that delivered it.</p>
+
+<h2 id="value">The value: seven things intent.md buys you</h2>
+<ol class="value">
+  <li><strong>It moves the cheapest review to the front.</strong> Catching a wrong outcome in a one-page intent costs minutes. Catching it in a merged PR costs a rewrite. Intent review is where human judgement buys the most per minute spent.</li>
+  <li><strong>It's durable context for agents.</strong> An agent can only follow context it can read. intent.md survives session resets, model swaps and handoffs, so a planner agent, a coding agent and a reviewer agent all work from the same statement of purpose. That's essential in multi-agent setups.</li>
+  <li><strong>It's the yardstick for review.</strong> With a written outcome, reviewers (human or agent) can ask "does this deliver the intent?" and not only "is this code correct?" The spec's acceptance criteria trace back to it.</li>
+  <li><strong>It contains scope creep.</strong> Agents are eager. A frozen intent gives them, and their reviewers, a boundary: anything that doesn't trace to the intent is either out of scope or a new intent.</li>
+  <li><strong>It's an audit trail.</strong> Accepted via PR, owned via CODEOWNERS and frozen on acceptance, intent.md records who asked for what, when, and who approved it. In regulated environments, that's the line from a change to its business justification that auditors and change boards ask for.</li>
+  <li><strong>It widens who can originate work.</strong> With no implementation detail, a PM, support engineer or ops lead can author one, often with an agent interviewing them and drafting it, without needing to speak in code.</li>
+  <li><strong>It makes rework measurable.</strong> Once intent and spec are committed artifacts, you can measure the gap between them and see when missing decisions are causing churn (see <a href="#measure">Measuring it</a>).</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 760 188" role="img" aria-label="Why does this code exist? Four hops back to an approved outcome" font-size="13">
+  <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--edge)"/></marker></defs>
+  <text class="title" x="28" y="34">Why does this code exist? Four hops back to an approved outcome</text>
+  <g class="ln"><path d="M212 96H180" marker-end="url(#a3)"/><path d="M396 96H364" marker-end="url(#a3)"/><path d="M580 96H548" marker-end="url(#a3)"/></g>
+  <g text-anchor="middle">
+    <rect class="main" x="28" y="60" width="152" height="72" rx="8"/><text class="t b" x="104" y="84">intent.md</text><text class="t" x="104" y="102" font-size="11.5">Outcome and why</text><text class="q" x="104" y="118" font-size="11.5">Owner approved</text>
+    <rect class="box" x="212" y="60" width="152" height="72" rx="8"/><text class="t b" x="288" y="84">spec.md</text><text class="t" x="288" y="102" font-size="11.5">Acceptance criterion</text><text class="q" x="288" y="118" font-size="11.5">Each one checkable</text>
+    <rect class="box" x="396" y="60" width="152" height="72" rx="8"/><text class="t b" x="472" y="84">plan.md</text><text class="t" x="472" y="102" font-size="11.5">Step that meets it</text><text class="q" x="472" y="118" font-size="11.5">Reviewed first</text>
+    <rect class="box" x="580" y="60" width="152" height="72" rx="8"/><text class="t b" x="656" y="84">Code and tests</text><text class="t" x="656" y="102" font-size="11.5">Test per criterion</text><text class="q" x="656" y="118" font-size="11.5">Merged PR</text>
+    <text class="q" x="380" y="164" font-size="11.5">Review and audit walk this chain right to left, one hop at a time</text>
+  </g>
+</svg>
+<figcaption>Traceability is what makes benefits 3 and 5 real: reviewers and auditors can walk from any commit back to the outcome it serves.</figcaption>
+</figure>
+
+<h2 id="neighbors">intent.md vs its neighbors</h2>
+<div class="table-scroll"><table>
+  <tr><th>Artifact</th><th>Scope</th><th>Answers</th><th>Owner</th><th>Lifespan</th></tr>
+  <tr><td>AGENTS.md / CLAUDE.md</td><td>Every change in the repo</td><td>How agents should behave here: conventions, commands, rules</td><td>Team</td><td>Long-lived</td></tr>
+  <tr class="hl"><td><strong>intent.md</strong></td><td>One change</td><td>Why, and what outcome</td><td>Product owner or originator</td><td>Frozen on acceptance</td></tr>
+  <tr><td>spec.md</td><td>One change</td><td>Requirements and acceptance criteria, architecture, out of scope, policies applied, flagged concerns</td><td>PO, plus architect for risky changes</td><td>Changes only via re-design</td></tr>
+  <tr><td>plan.md</td><td>One change</td><td>How to build it, step by step</td><td>Tech lead or agent</td><td>Until shipped</td></tr>
+</table></div>
+
+<figure>
+<svg viewBox="0 0 760 280" role="img" aria-label="Instruction files govern every change; intent, spec and plan govern one" font-size="13">
+  <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--edge)"/></marker></defs>
+  <text class="title" x="24" y="34">Instruction files govern every change; intent, spec and plan govern one</text>
+  <rect class="box" x="24" y="52" width="712" height="128" rx="8" stroke-dasharray="4 4"/>
+  <text class="q b" x="40" y="76">One change</text>
+  <g class="ln"><path d="M240 128H280" marker-end="url(#a4)"/><path d="M480 128H520" marker-end="url(#a4)"/>
+  <line x1="140" x2="140" y1="180" y2="200"/><line x1="380" x2="380" y1="180" y2="200"/><line x1="620" x2="620" y1="180" y2="200"/></g>
+  <g text-anchor="middle">
+    <rect class="main" x="40" y="92" width="200" height="72" rx="8"/><text class="t b" x="140" y="116">intent.md</text><text class="t" x="140" y="134" font-size="11.5">Why and what</text><text class="q" x="140" y="150" font-size="11.5">Frozen on acceptance</text>
+    <rect class="box" x="280" y="92" width="200" height="72" rx="8"/><text class="t b" x="380" y="116">spec.md</text><text class="t" x="380" y="134" font-size="11.5">Requirements and criteria</text><text class="q" x="380" y="150" font-size="11.5">Changes via re-design</text>
+    <rect class="box" x="520" y="92" width="200" height="72" rx="8"/><text class="t b" x="620" y="116">plan.md</text><text class="t" x="620" y="134" font-size="11.5">How to build it</text><text class="q" x="620" y="150" font-size="11.5">Lives until shipped</text>
+    <rect class="tint" x="24" y="200" width="712" height="56" rx="8"/><text class="t b" x="380" y="224">AGENTS.md / CLAUDE.md</text><text class="q" x="380" y="241" font-size="11.5">Rules for every change: conventions, commands, guardrails</text>
+  </g>
+</svg>
+<figcaption>AGENTS.md is the standing ground every change rests on; intent, spec and plan are created fresh for each change.</figcaption>
+</figure>
+<p>Instruction files set rules for <em>all</em> work; intent sets purpose for <em>one</em> piece of it; the spec turns purpose into checkable requirements; the plan turns requirements into steps. Collapsing intent into spec is the most common shortcut, and it's exactly what lets design decisions leak in before anyone has agreed on the outcome.</p>
+
+<h2 id="template">Anatomy: a template</h2>
+<div class="codebox">
+<button class="copy" type="button" id="copyBtn">Copy</button>
+<pre><code id="tpl"># Intent: &lt;short title&gt;
+Author: &lt;name&gt; · Team: &lt;team&gt; · Status: draft | accepted · Ticket: &lt;ID&gt;
+
+## Problem
+&lt;What's wrong today, for whom, and how we know. Evidence, not opinion.&gt;
+
+## Proposed outcome
+&lt;What will be observably different when this is done. Each outcome should be
+something a user, an operator or a metric could confirm.&gt;
+
+## Affected users and systems
+&lt;Who feels this change. Which systems are touched, by name, not internals.&gt;
+
+## Constraints
+&lt;Regulatory, security, timing, compatibility, cost.&gt;
+&lt;Originator preference: &lt;design idea&gt;, if any, labeled as such.&gt;
+
+## Open questions
+&lt;What the originator doesn't know yet. Design answers these; agents don't guess.&gt;</code></pre>
+</div>
+<div class="callout"><strong>A quick test for a good intent:</strong> could two different teams read it, build different implementations, and both be right? If yes, it states intent. If it forces one implementation, it's a spec wearing an intent's clothes.</div>
+
+<h2 id="governance">Making it stick: governance</h2>
+<p>A file convention only adds value if it's enforced. Patterns that work:</p>
+<ul>
+  <li><strong>Accept by PR.</strong> The intent lands as a PR containing only the intent file. The owner approves, the status flips to <code>accepted</code> in the same PR, and merging is the acceptance. Closing it is a recorded rejection.</li>
+  <li><strong>CODEOWNERS and branch protection.</strong> Product owners own <code>intent/**</code>, and their review is required.</li>
+  <li><strong>A shape check in CI.</strong> A script verifies the required sections, the author and status line, the absence of code or file paths, and that intent PRs touch only intent files. Run it from the trusted base branch so an agent can't edit its own checker.</li>
+  <li><strong>Freeze on acceptance.</strong> Changing intent means a new PR, which sends the spec back through design. This is what makes traceability real.</li>
+  <li><strong>Agent drafts, human owns.</strong> An agent interviews the originator and drafts; the originator corrects; a fresh agent session reviews for design leaks, unobservable outcomes, missing constraints and unsourced claims.</li>
+  <li><strong>Advisory vs enforced.</strong> intent.md, like any instruction to an agent, makes intent <em>reviewable</em>; it can't force compliance. Rules that must always hold belong in deterministic checks: hooks, tests and deploy gates.</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 760 368" role="img" aria-label="An intent is accepted by merge, rejected by close, changed by a new PR" font-size="13">
+  <defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--edge)"/></marker></defs>
+  <text class="title" x="24" y="34">An intent is accepted by merge, rejected by close, changed by a new PR</text>
+  <g class="ln"><path d="M184 92H208" marker-end="url(#a5)"/><path d="M368 92H392" marker-end="url(#a5)"/><path d="M552 92H576" marker-end="url(#a5)"/>
+  <path d="M656 120V176" marker-end="url(#a5)"/><path d="M576 204H544" marker-end="url(#a5)"/><path d="M400 204H368" marker-end="url(#a5)"/>
+  <path d="M208 204H184" marker-end="url(#a5)"/><path d="M472 240V288" marker-end="url(#a5)"/><path d="M288 232V288" marker-end="url(#a5)"/></g>
+  <g text-anchor="middle">
+    <rect class="box" x="24" y="64" width="160" height="56" rx="8"/><text class="t b" x="104" y="88">Request</text><text class="q" x="104" y="105" font-size="11.5">from the originator</text>
+    <rect class="box" x="208" y="64" width="160" height="56" rx="8"/><text class="t b" x="288" y="88">Agent drafts</text><text class="q" x="288" y="105" font-size="11.5">by interviewing them</text>
+    <rect class="box" x="392" y="64" width="160" height="56" rx="8"/><text class="t b" x="472" y="88">Originator</text><text class="q" x="472" y="105" font-size="11.5">corrects the draft</text>
+    <rect class="box" x="576" y="64" width="160" height="56" rx="8"/><text class="t b" x="656" y="88">Fresh agent</text><text class="q" x="656" y="105" font-size="11.5">checks for leaks</text>
+    <rect class="box" x="576" y="176" width="160" height="56" rx="8"/><text class="t b" x="656" y="200">Intent-only PR</text><text class="q" x="656" y="217" font-size="11.5">CI shape check runs</text>
+    <polygon class="box" points="400,204 472,168 544,204 472,240"/><text class="t" x="472" y="208">Owner approves?</text>
+    <rect class="main" x="208" y="176" width="160" height="56" rx="8"/><text class="t b" x="288" y="200">Merged</text><text class="t" x="288" y="217" font-size="11.5">accepted and frozen</text>
+    <rect class="box" x="24" y="176" width="160" height="56" rx="8"/><text class="t b" x="104" y="200">spec.md</text><text class="q" x="104" y="217" font-size="11.5">design begins</text>
+    <rect class="box" x="392" y="288" width="160" height="56" rx="8"/><text class="t b" x="472" y="312">Closed</text><text class="q" x="472" y="329" font-size="11.5">rejection on record</text>
+    <rect class="box" x="208" y="288" width="160" height="56" rx="8"/><text class="t b" x="288" y="312">Intent changes</text><text class="q" x="288" y="329" font-size="11.5">new PR, spec redone</text>
+    <text class="q" x="384" y="196" font-size="11.5">yes</text>
+  </g>
+  <text class="q" x="482" y="268" font-size="11.5">no</text><text class="q" x="298" y="268" font-size="11.5">later</text>
+</svg>
+<figcaption>Drafting is cheap and agent-assisted; acceptance is a human decision recorded in git.</figcaption>
+</figure>
+
+<h2 id="limits">Where it doesn't pay, and how it fails</h2>
+<ul>
+  <li><strong>Small or invisible changes.</strong> Refactors, dependency bumps and anything nobody outside the team can observe can skip intent. Requiring it everywhere turns it into ceremony.</li>
+  <li><strong>When stating it is harder than building it.</strong> For small, well-understood problems, writing precise intent can cost more than the work. The payoff grows with ambiguity, risk, and the number of people and agents touching the change.</li>
+  <li><strong>Design leakage.</strong> An intent that names endpoints or tables has made a design decision without design review. The shape check and reviewer agent exist to catch this.</li>
+  <li><strong>Unobservable outcomes.</strong> "Improve the experience" can't be verified, so the spec can't derive acceptance criteria from it.</li>
+  <li><strong>Intent rot.</strong> If intents get edited in place after build starts, the chain breaks. Freeze them; supersede them.</li>
+  <li><strong>Rubber-stamp acceptance.</strong> If owners approve without reading, you've added latency without judgement. A healthy process rejects some intents.</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 760 440" role="img" aria-label="Intent pays off where ambiguity and blast radius are both high" font-size="13">
+  <text class="title" x="24" y="34">Intent pays off where ambiguity and blast radius are both high</text>
+  <rect class="hlq" x="420" y="64" width="300" height="160"/>
+  <line class="grid" x1="420" x2="420" y1="64" y2="384"/><line class="grid" x1="120" x2="720" y1="224" y2="224"/>
+  <rect class="box" x="120" y="64" width="600" height="320"/>
+  <g text-anchor="middle">
+    <text class="t b" x="270" y="140">Constraint-heavy intent</text><text class="q" x="270" y="158" font-size="11.5">regulatory, migrations, shared APIs</text>
+    <text class="t b" x="570" y="140">Full intent, full review</text><text class="t" x="570" y="158" font-size="11.5">new user-facing capability</text>
+    <text class="t b" x="270" y="300">Skip it</text><text class="q" x="270" y="318" font-size="11.5">refactors, dependency bumps</text>
+    <text class="t b" x="570" y="300">Light intent</text><text class="q" x="570" y="318" font-size="11.5">a few lines, fast acceptance</text>
+    <text class="t" x="420" y="420">Ambiguity of the ask</text>
+    <text class="t" x="52" y="224" transform="rotate(-90 52 224)">Blast radius: people, agents, risk</text>
+  </g>
+  <text class="q" x="120" y="402" font-size="11.5">low</text><text class="q" x="720" y="402" text-anchor="end" font-size="11.5">high</text>
+  <text class="q" x="110" y="384" text-anchor="end" font-size="11.5">low</text><text class="q" x="110" y="74" text-anchor="end" font-size="11.5">high</text>
+</svg>
+<figcaption>A rule of thumb for triage: the more ambiguous the ask and the more it touches, the more an intent earns its keep.</figcaption>
+</figure>
+
+<h2 id="measure">Measuring it, and getting started</h2>
+<div class="metrics">
+  <div class="card"><h3>Leading indicators</h3><ul>
+    <li>Time from first request to merged intent: hours to days, not weeks.</li>
+    <li>Time from the intent commit to the accepted spec commit.</li></ul></div>
+  <div class="card"><h3>Lagging indicators</h3><ul>
+    <li>Share of intents accepted vs closed: a filter that never rejects isn't filtering.</li>
+    <li>Spec commits after the first plan commit: a proxy for rework from missed decisions.</li>
+    <li>How often intents change after the first spec commit.</li></ul></div>
+</div>
+<p><strong>A two-week pilot</strong></p>
+<ol>
+  <li>Pick one team and one class of user-visible change.</li>
+  <li>Add <code>intent/TEMPLATE.md</code>, a CODEOWNERS entry and a simple shape check in CI.</li>
+  <li>Give the agent a skill or prompt that interviews the originator and drafts the intent; have a fresh session review it.</li>
+  <li>Require an accepted intent before any spec or plan for that change class.</li>
+  <li>After two weeks, compare rework (post-plan spec edits, reopened PRs, review churn) with the previous period, and decide whether to widen it.</li>
+</ol>
+
+<h2 id="sources">Sources</h2>
+<ul class="sources">
+  <li><a href="https://developertoolkit.ai/en/method/lifecycle/plan/">Plan: capture intent.md, AI-native SDLC (Developer Toolkit)</a></li>
+  <li><a href="https://developertoolkit.ai/en/shared-workflows/ai-native-sdlc/design/">Design: write spec.md, AI-native SDLC (Developer Toolkit)</a></li>
+  <li><a href="https://vercel.com/i/spec-driven-development">What is spec-driven development? (Vercel)</a></li>
+  <li><a href="https://www.agentpatterns.ai/workflows/spec-driven-development/">Spec-Driven Development with Spec Kit (Agent Patterns)</a></li>
+  <li><a href="https://www.devplan.com/blog/intent-layer-ai-development">Why Intent Is the New Bottleneck in AI Development (Devplan)</a></li>
+  <li><a href="https://addyosmani.com/blog/good-spec/">How to write a good spec for AI agents (Addy Osmani)</a></li>
+  <li><a href="https://russellromney.com/blog/intent-driven-development">Intent-Driven Development (Russell Romney)</a></li>
+  <li><a href="https://github.com/GrillerGeek/idd-framework">Intent-Driven Development Framework (GrillerGeek/idd-framework)</a></li>
+</ul>
+<footer>Also published at <a href="https://github.com/aasthapit/thoughts/blob/main/posts/2026-11-13-why-intent-md.md">github.com/aasthapit/thoughts</a>.</footer>
+</article>
+</div>
+<script>
+  document.getElementById('copyBtn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    try { await navigator.clipboard.writeText(document.getElementById('tpl').textContent); btn.textContent = 'Copied'; }
+    catch (err) { btn.textContent = 'Select and copy'; }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+  });
+</script>
+</body>
+</html>
