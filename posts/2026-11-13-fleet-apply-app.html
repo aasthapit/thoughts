@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline over cluster-admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one column. Short thesis, then the app prototype as five
+   numbered steps (write, target, checks, approve and apply, record),
+   then the case: what it replaces, what runs behind the form, objections. */
+:root {
+  --bg: #f3f5f7;
+  --surface: #ffffff;
+  --ink: #14202b;
+  --muted: #586675;
+  --line: #d3dae1;
+  --accent: #0b6e8f;
+  --accent-soft: #dcedf3;
+  --risk: #b0412c;
+  --risk-soft: #f7e4df;
+  --ok: #1c7450;
+  --ok-soft: #dff1e8;
+  --on-accent: #ffffff;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f161c; --surface: #172029; --ink: #e6edf2; --muted: #96a4b0;
+    --line: #2b3742; --accent: #5cbcd9; --accent-soft: #14323d;
+    --risk: #ee8b74; --risk-soft: #3a1f19; --ok: #62c89a; --ok-soft: #153126;
+    --on-accent: #0f161c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f161c; --surface: #172029; --ink: #e6edf2; --muted: #96a4b0;
+  --line: #2b3742; --accent: #5cbcd9; --accent-soft: #14323d;
+  --risk: #ee8b74; --risk-soft: #3a1f19; --ok: #62c89a; --ok-soft: #153126;
+  --on-accent: #0f161c;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; }
+main { max-width: 860px; margin: 0 auto; padding: 28px 16px 64px; display: flex; flex-direction: column; gap: 40px; }
+h1, h2 { font-family: var(--display); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 7vw, 2.9rem); line-height: 1.06; }
+h2 { font-size: 1.45rem; line-height: 1.15; }
+h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+p { margin: 0; max-width: 65ch; }
+section, header { display: flex; flex-direction: column; gap: 14px; }
+.kicker { font-family: var(--mono); font-size: 0.76rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; }
+.lede { font-size: 1.1rem; }
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+
+.banner { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--ink); border-radius: 4px; padding: 8px 12px; font-size: 0.86rem; }
+
+/* app shell */
+.app { display: flex; flex-direction: column; gap: 12px; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.step > header { flex-direction: row; align-items: baseline; gap: 10px; }
+.step > header .n { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); }
+.row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--muted); flex: 1 1 150px; min-width: 0; }
+input[type=text], select, textarea {
+  font: inherit; font-size: 16px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; width: 100%;
+}
+textarea { font-family: var(--mono); font-size: 14px; line-height: 1.5; resize: vertical; min-height: 260px; white-space: pre; overflow: auto; tab-size: 2; }
+@media (max-width: 600px) { textarea { font-size: 16px; } }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+button { font: inherit; cursor: pointer; border-radius: 4px; }
+.btn { background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); padding: 9px 16px; font-weight: 600; }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--accent); font-weight: 500; }
+.btn.warn { background: transparent; color: var(--risk); border-color: var(--risk); font-weight: 500; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; align-self: flex-start; }
+.seg button { border: 0; background: var(--bg); color: var(--muted); padding: 7px 14px; border-radius: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chips .lbl { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); width: 72px; }
+.chip { border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 4px 12px; border-radius: 99px; font-size: 0.88rem; }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.matches { display: flex; flex-direction: column; gap: 4px; }
+.matches button { text-align: left; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 6px 10px; font-family: var(--mono); font-size: 0.85rem; }
+.matches button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.summary { background: var(--bg); border-radius: 4px; padding: 10px 12px; font-size: 0.9rem; display: flex; flex-direction: column; gap: 2px; }
+.summary b { font-family: var(--display); font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+
+.checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.checks li { display: grid; grid-template-columns: 118px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 0.9rem; align-items: start; }
+.checks li:first-child { border-top: 0; }
+.checks small { display: block; color: var(--muted); font-size: 0.82rem; overflow-wrap: anywhere; }
+.pill { display: inline-block; font-family: var(--mono); font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; white-space: nowrap; text-align: center; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.no { background: var(--risk-soft); color: var(--risk); }
+.pill.gate { background: var(--accent-soft); color: var(--accent); }
+.pill.idle { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+
+.waves { display: flex; flex-direction: column; gap: 10px; }
+.wave { display: flex; flex-direction: column; gap: 4px; font-size: 0.88rem; }
+.wave .top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.wave .top span:last-child { font-family: var(--mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+.bar { height: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.15s linear; }
+.wave.pass .bar i { background: var(--ok); }
+.wave.fail .bar i { background: var(--risk); }
+.wave.fail .top span:last-child { color: var(--risk); }
+.wave.pass .top span:last-child { color: var(--ok); }
+.status { font-weight: 600; }
+.status.bad { color: var(--risk); } .status.good { color: var(--ok); }
+.toggle { display: flex; gap: 8px; align-items: center; font-size: 0.86rem; color: var(--muted); }
+
+pre { margin: 0; background: var(--bg); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 4px; padding: 12px 14px; overflow-x: auto; font-family: var(--mono); font-size: 0.8rem; line-height: 1.6; }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.86rem; }
+.log li { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* case */
+.contrast { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.contrast .head, .contrast .crow { display: grid; grid-template-columns: 1fr 1fr; }
+.contrast .head > div { padding: 10px 14px; font-weight: 600; font-size: 0.9rem; }
+.contrast .head .a { background: var(--risk-soft); color: var(--risk); }
+.contrast .head .b { background: var(--ok-soft); color: var(--ok); }
+.contrast .dim { grid-column: 1 / -1; padding: 10px 14px 0; font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); border-top: 1px solid var(--line); }
+.contrast .crow > p { padding: 4px 14px 12px; font-size: 0.92rem; }
+.contrast .crow > p + p { border-left: 1px solid var(--line); }
+.behind { list-style: none; margin: 0; padding: 0; counter-reset: b; display: flex; flex-direction: column; gap: 8px; }
+.behind li { counter-increment: b; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 10px 14px 10px 46px; position: relative; font-size: 0.93rem; }
+.behind li::before { content: counter(b); position: absolute; left: 14px; top: 10px; font-family: var(--mono); color: var(--accent); }
+.qa { display: flex; flex-direction: column; gap: 10px; }
+.qa div { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; }
+.qa p { font-size: 0.93rem; color: var(--muted); }
+.ask { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 6px; padding: 18px 20px; }
+.ask h2 { color: var(--accent); }
+footer { color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--line); padding-top: 14px; }
+/* diagrams */
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+figure .scroll { overflow-x: auto; }
+figure svg { display: block; height: auto; color: var(--ink); font-family: var(--body); }
+.flow svg { width: 100%; max-width: 430px; margin: 0 auto; }
+.seq svg { width: 100%; min-width: 700px; }
+figcaption { font-size: 0.86rem; color: var(--muted); max-width: 65ch; }
+svg .ln { stroke: currentColor; stroke-width: 1.4; fill: none; }
+svg .ret { stroke-dasharray: 6 4; }
+svg .life { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 4; }
+svg .frame { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+svg .bx { fill: var(--bg); stroke: currentColor; stroke-width: 1.4; }
+svg .bx.risk { fill: var(--risk-soft); stroke: var(--risk); }
+svg .bx.good { fill: var(--ok-soft); stroke: var(--ok); }
+svg .bx.act { fill: var(--accent-soft); stroke: var(--accent); }
+svg text { fill: currentColor; font-size: 12px; }
+svg text.sm { font-size: 11px; }
+svg text.mut { fill: var(--muted); }
+svg text.msg { paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <span class="kicker">Proposal · Self-service fleet apply</span>
+  <h1>A web app applies YAML to the fleet. No person needs cluster-admin.</h1>
+  <p class="lede">An engineer completes a form or pastes YAML. The engineer selects one cluster or a set of clusters. The app does the checks, gets a second approval, and runs <code>oc apply</code> with a limited service account. Then the app records the result.</p>
+</header>
+
+<section aria-labelledby="proto-h">
+  <h2 id="proto-h">Do a test of the flow</h2>
+  <p class="banner">This is a prototype. It does not apply changes. The 1,040 clusters are sample data. The rollout is a simulation. The user is <span class="mono">a.engineer</span>.</p>
+
+  <div class="app">
+
+    <div class="step">
+      <header><span class="n">01</span><h3>Write the change</h3></header>
+      <div class="row">
+        <label class="field" for="tpl">Start with
+          <select id="tpl">
+            <option value="netpol">Form: NetworkPolicy</option>
+            <option value="quota">Form: ResourceQuota</option>
+            <option value="raw">Paste YAML</option>
+          </select>
+        </label>
+        <label class="field" for="ticket">Change ticket
+          <input type="text" id="ticket" value="CHG0048213" autocomplete="off" spellcheck="false">
+        </label>
+      </div>
+      <div class="row" id="fields"></div>
+      <label class="field" for="yaml">Manifest
+        <textarea id="yaml" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      </label>
+      <div class="row">
+        <button type="button" class="btn warn" id="load-blocked">Load a change that the app must refuse</button>
+      </div>
+    </div>
+
+    <div class="step">
+      <header><span class="n">02</span><h3>Select the target clusters</h3></header>
+      <div class="seg" role="group" aria-label="Target mode">
+        <button type="button" id="mode-set" aria-pressed="true">A set of clusters</button>
+        <button type="button" id="mode-one" aria-pressed="false">One cluster</button>
+      </div>
+      <div id="pane-set" style="display:flex;flex-direction:column;gap:8px">
+        <div class="chips" data-group="env"><span class="lbl">Env</span></div>
+        <div class="chips" data-group="region"><span class="lbl">Region</span></div>
+        <div class="chips" data-group="platform"><span class="lbl">Platform</span></div>
+        <p class="small muted">If you select no value in a row, the app uses all values.</p>
+      </div>
+      <div id="pane-one" hidden style="display:flex;flex-direction:column;gap:8px">
+        <label class="field" for="cluster-search">Find a cluster
+          <input type="text" id="cluster-search" placeholder="e.g. prod-east-017" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="matches" id="matches"></div>
+      </div>
+      <div class="summary" id="target-summary"></div>
+    </div>
+
+    <div class="step">
+      <header><span class="n">03</span><h3>Guardrail checks</h3></header>
+      <ul class="checks" id="checks"></ul>
+      <div class="row">
+        <button type="button" class="btn" id="submit">Send for approval</button>
+        <span class="small muted" id="submit-note"></span>
+      </div>
+    </div>
+
+    <div class="step">
+      <header><span class="n">04</span><h3>Approve and apply</h3></header>
+      <p class="muted small" id="apply-idle">No change is in the queue.</p>
+      <div id="approve-box" hidden style="display:flex;flex-direction:column;gap:10px">
+        <p id="approve-text" class="small"></p>
+        <label class="toggle" for="fail-demo"><input type="checkbox" id="fail-demo"> Demonstration: cause wave 2 to fail the health check</label>
+        <div class="row">
+          <button type="button" class="btn" id="approve">Approve as second reviewer</button>
+          <button type="button" class="btn ghost" id="reject">Reject</button>
+        </div>
+      </div>
+      <div class="waves" id="waves" hidden></div>
+      <p class="status" id="roll-status" hidden></p>
+    </div>
+
+    <div class="step">
+      <header><span class="n">05</span><h3>The record</h3></header>
+      <p class="muted small" id="record-idle">The app writes a record when a change is complete or stops.</p>
+      <pre id="record" hidden></pre>
+      <div class="row" id="record-actions" hidden>
+        <button type="button" class="btn ghost" id="copy">Copy record</button>
+        <button type="button" class="btn ghost" id="again">Start a new change</button>
+      </div>
+      <ul class="log" id="log"></ul>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>How a change moves</h2>
+  <p class="muted">The flow chart shows each point where the app can stop a change. The sequence diagram shows which component does each step.</p>
+
+  <figure class="flow">
+    <svg viewBox="0 0 430 700" role="img" aria-label="Flow chart. A change must pass four gates before it gets to a cluster: valid YAML, the allowlist, a server-side dry-run, and reviewer approval. Then the app applies the change in waves. If a wave fails the health check, the rollout stops.">
+      <defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+
+      <rect class="bx" x="40" y="14" width="200" height="36" rx="18"/>
+      <text x="140" y="36" text-anchor="middle">Send YAML and targets</text>
+      <line class="ln" x1="140" y1="50" x2="140" y2="69" marker-end="url(#fa)"/>
+
+      <polygon class="bx" points="140,70 225,100 140,130 55,100"/>
+      <text x="140" y="104" text-anchor="middle">Is the YAML valid?</text>
+      <line class="ln" x1="225" y1="100" x2="267" y2="100" marker-end="url(#fa)"/>
+      <text class="sm mut" x="246" y="94" text-anchor="middle">no</text>
+      <rect class="bx risk" x="268" y="80" width="150" height="40" rx="4"/>
+      <text class="sm" x="343" y="104" text-anchor="middle">Refuse: YAML error</text>
+      <line class="ln" x1="140" y1="130" x2="140" y2="149" marker-end="url(#fa)"/>
+      <text class="sm mut" x="150" y="144">yes</text>
+
+      <polygon class="bx" points="140,150 225,180 140,210 55,180"/>
+      <text x="140" y="184" text-anchor="middle">Is the kind allowed?</text>
+      <line class="ln" x1="225" y1="180" x2="267" y2="180" marker-end="url(#fa)"/>
+      <text class="sm mut" x="246" y="174" text-anchor="middle">no</text>
+      <rect class="bx risk" x="268" y="160" width="150" height="40" rx="4"/>
+      <text class="sm" x="343" y="184" text-anchor="middle">Refuse: blocked kind</text>
+      <line class="ln" x1="140" y1="210" x2="140" y2="229" marker-end="url(#fa)"/>
+      <text class="sm mut" x="150" y="224">yes</text>
+
+      <polygon class="bx" points="140,230 225,260 140,290 55,260"/>
+      <text x="140" y="264" text-anchor="middle">Is the dry-run OK?</text>
+      <line class="ln" x1="225" y1="260" x2="267" y2="260" marker-end="url(#fa)"/>
+      <text class="sm mut" x="246" y="254" text-anchor="middle">no</text>
+      <rect class="bx risk" x="268" y="240" width="150" height="40" rx="4"/>
+      <text class="sm" x="343" y="264" text-anchor="middle">Refuse: dry-run error</text>
+      <line class="ln" x1="140" y1="290" x2="140" y2="309" marker-end="url(#fa)"/>
+      <text class="sm mut" x="150" y="304">yes</text>
+
+      <polygon class="bx" points="140,310 225,340 140,370 55,340"/>
+      <text x="140" y="344" text-anchor="middle">Reviewer approval?</text>
+      <line class="ln" x1="225" y1="340" x2="267" y2="340" marker-end="url(#fa)"/>
+      <text class="sm mut" x="246" y="334" text-anchor="middle">no</text>
+      <rect class="bx risk" x="268" y="320" width="150" height="40" rx="4"/>
+      <text class="sm" x="343" y="344" text-anchor="middle">Reject and record</text>
+      <line class="ln" x1="140" y1="370" x2="140" y2="395" marker-end="url(#fa)"/>
+      <text class="sm mut" x="150" y="386">yes</text>
+
+      <rect class="bx act" x="40" y="396" width="200" height="48" rx="4"/>
+      <text x="140" y="416" text-anchor="middle">Apply the next wave</text>
+      <text class="sm mut" x="140" y="433" text-anchor="middle">with a limited service account</text>
+      <line class="ln" x1="140" y1="444" x2="140" y2="479" marker-end="url(#fa)"/>
+
+      <polygon class="bx" points="140,480 225,510 140,540 55,510"/>
+      <text x="140" y="514" text-anchor="middle">Is the wave healthy?</text>
+      <line class="ln" x1="225" y1="510" x2="267" y2="510" marker-end="url(#fa)"/>
+      <text class="sm mut" x="246" y="504" text-anchor="middle">no</text>
+      <rect class="bx risk" x="268" y="490" width="150" height="40" rx="4"/>
+      <text class="sm" x="343" y="514" text-anchor="middle">Stop. No more changes</text>
+      <line class="ln" x1="140" y1="540" x2="140" y2="559" marker-end="url(#fa)"/>
+      <text class="sm mut" x="150" y="554">yes</text>
+
+      <polygon class="bx" points="140,560 225,590 140,620 55,590"/>
+      <text x="140" y="594" text-anchor="middle">More clusters?</text>
+      <path class="ln" d="M55 590 H18 V420 H39" marker-end="url(#fa)"/>
+      <text class="sm mut" x="36" y="583" text-anchor="middle">yes</text>
+      <line class="ln" x1="140" y1="620" x2="140" y2="649" marker-end="url(#fa)"/>
+      <text class="sm mut" x="150" y="638">no</text>
+
+      <rect class="bx good" x="40" y="650" width="200" height="36" rx="18"/>
+      <text x="140" y="672" text-anchor="middle">Write the record</text>
+    </svg>
+    <figcaption>Four gates are before the fleet. If a change fails a gate, it does not get to a cluster. If a wave fails, the rollout stops. The remaining clusters do not change.</figcaption>
+  </figure>
+
+  <figure class="seq">
+    <div class="scroll">
+    <svg viewBox="0 0 760 525" role="img" aria-label="Sequence diagram. The engineer sends the change to the web app. The app does the checks, does a dry-run, commits the manifest to Git, and asks for approval. Then a runner applies the change to the clusters in waves with a limited service account. The runner sends the results to the app.">
+      <defs><marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+
+      <line class="life" x1="60" y1="40" x2="60" y2="515"/>
+      <line class="life" x1="190" y1="40" x2="190" y2="515"/>
+      <line class="life" x1="310" y1="40" x2="310" y2="515"/>
+      <line class="life" x1="430" y1="40" x2="430" y2="515"/>
+      <line class="life" x1="550" y1="40" x2="550" y2="515"/>
+      <line class="life" x1="680" y1="40" x2="680" y2="515"/>
+
+      <rect class="bx" x="10" y="10" width="100" height="30" rx="4"/><text x="60" y="30" text-anchor="middle">Engineer</text>
+      <rect class="bx act" x="140" y="10" width="100" height="30" rx="4"/><text x="190" y="30" text-anchor="middle">Web app</text>
+      <rect class="bx" x="260" y="10" width="100" height="30" rx="4"/><text x="310" y="30" text-anchor="middle">Git</text>
+      <rect class="bx" x="380" y="10" width="100" height="30" rx="4"/><text x="430" y="30" text-anchor="middle">Approver</text>
+      <rect class="bx" x="500" y="10" width="100" height="30" rx="4"/><text x="550" y="30" text-anchor="middle">Runner</text>
+      <rect class="bx" x="630" y="10" width="100" height="30" rx="4"/><text x="680" y="30" text-anchor="middle">Clusters</text>
+
+      <text class="sm msg" x="125" y="64" text-anchor="middle">YAML, targets, ticket</text>
+      <line class="ln" x1="60" y1="70" x2="189" y2="70" marker-end="url(#sa)"/>
+
+      <path class="ln" d="M190 90 H216 V106 H192" marker-end="url(#sa)"/>
+      <text class="sm msg" x="224" y="102">do the checks</text>
+
+      <text class="sm msg" x="204" y="128">oc apply --dry-run=server on one cluster</text>
+      <line class="ln" x1="190" y1="134" x2="679" y2="134" marker-end="url(#sa)"/>
+      <text class="sm msg" x="666" y="156" text-anchor="end">dry-run result</text>
+      <line class="ln ret" x1="680" y1="162" x2="191" y2="162" marker-end="url(#sa)"/>
+
+      <text class="sm msg" x="250" y="186" text-anchor="middle">commit the manifest</text>
+      <line class="ln" x1="190" y1="192" x2="309" y2="192" marker-end="url(#sa)"/>
+
+      <text class="sm msg" x="416" y="214" text-anchor="end">ask for a review</text>
+      <line class="ln" x1="190" y1="220" x2="429" y2="220" marker-end="url(#sa)"/>
+      <text class="sm msg" x="416" y="242" text-anchor="end">approve</text>
+      <line class="ln ret" x1="430" y1="248" x2="191" y2="248" marker-end="url(#sa)"/>
+
+      <text class="sm msg" x="536" y="270" text-anchor="end">start the rollout</text>
+      <line class="ln" x1="190" y1="276" x2="549" y2="276" marker-end="url(#sa)"/>
+
+      <rect class="frame" x="490" y="296" width="250" height="140"/>
+      <text class="sm mut" x="496" y="310">each wave</text>
+      <text class="sm msg" x="615" y="330" text-anchor="middle">oc apply (limited SA)</text>
+      <line class="ln" x1="550" y1="336" x2="679" y2="336" marker-end="url(#sa)"/>
+      <text class="sm msg" x="615" y="358" text-anchor="middle">applied</text>
+      <line class="ln ret" x1="680" y1="364" x2="551" y2="364" marker-end="url(#sa)"/>
+      <text class="sm msg" x="615" y="386" text-anchor="middle">health check</text>
+      <line class="ln" x1="550" y1="392" x2="679" y2="392" marker-end="url(#sa)"/>
+      <text class="sm msg" x="615" y="414" text-anchor="middle">pass or stop</text>
+      <line class="ln ret" x1="680" y1="420" x2="551" y2="420" marker-end="url(#sa)"/>
+
+      <text class="sm msg" x="536" y="458" text-anchor="end">result for each cluster</text>
+      <line class="ln ret" x1="550" y1="464" x2="191" y2="464" marker-end="url(#sa)"/>
+      <text class="sm msg" x="125" y="488" text-anchor="middle">record and ticket</text>
+      <line class="ln ret" x1="190" y1="494" x2="61" y2="494" marker-end="url(#sa)"/>
+    </svg>
+    </div>
+    <figcaption>The engineer uses only the web app. Only the runner writes to the clusters. The runner uses a limited service account. Solid arrows are requests. Dashed arrows are replies. On a narrow screen, move the diagram sideways.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>What the app replaces</h2>
+  <div class="contrast">
+    <div class="head"><div class="a">Permanent cluster-admin</div><div class="b">Fleet apply app</div></div>
+    <div class="crow"><div class="dim">Permitted actions</div><p>All actions. This includes RBAC changes and namespace deletion.</p><p>Only the resource kinds on the allowlist. Only in namespaces that the platform does not own.</p></div>
+    <div class="crow"><div class="dim">Checks before the change</div><p>No check is mandatory. The person makes the decision.</p><p>A YAML check, an allowlist check, a server-side dry-run, then a second approver.</p></div>
+    <div class="crow"><div class="dim">Record</div><p>Each cluster has API audit entries. The reason and the approval are in other systems.</p><p>One record for each change: ticket, requester, approver, manifest, and the result for each cluster.</p></div>
+    <div class="crow"><div class="dim">Changes to many clusters</div><p>A script loop on the laptop of an engineer.</p><p>Select the clusters by label. The canary cluster is first. Then the waves follow. A failure stops the rollout.</p></div>
+    <div class="crow"><div class="dim">Write access</div><p>Each admin has write access to each cluster at all times.</p><p>Limited service accounts have write access. Engineers keep read access.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>What the system does after the form</h2>
+  <ol class="behind">
+    <li>The app identifies the engineer through SSO. The app does not give a cluster credential to the engineer.</li>
+    <li>The app commits the manifest to Git with the ticket number. Git keeps each version of the YAML. You can revert a version.</li>
+    <li>The server does the same checks again. Then the server runs <code>oc apply --dry-run=server</code> on a sample cluster.</li>
+    <li>After approval, a runner applies the manifest in waves. Each action class has its own service account with a narrow ClusterRole. No service account is cluster-admin.</li>
+    <li>Each wave must pass the health checks. The system writes the results to an append-only store and to the ticket.</li>
+    <li>An admission policy in each cluster refuses or flags the writes that did not come from the app.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Questions and answers</h2>
+  <div class="qa">
+    <div><h3>What do we do if there is an outage at night?</h3><p>Keep a break-glass procedure. The access has a time limit and an incident number. The system sends an alert. A reviewer examines the access after the incident.</p></div>
+    <div><h3>Does the app become the new cluster-admin?</h3><p>No, if the design is correct. Each action class has its own limited service account. A different team owns the allowlist. The admission policy is a second barrier. Thus one security failure has a small effect.</p></div>
+    <div><h3>What if a change is not on the allowlist?</h3><p>The app refuses the change and gives the reason. A new action class must have a review before the team adds it. The refusals show which action classes to add next.</p></div>
+    <div><h3>Can engineers continue to find faults?</h3><p>Yes. Engineers keep read access to all clusters. Only the write actions move to the app.</p></div>
+  </div>
+</section>
+
+<section class="ask">
+  <h2>The decision</h2>
+  <p>Approve a pilot. The pilot includes this app, an allowlist of our most frequent changes, and a break-glass procedure. The pilot runs on clusters that are not production clusters. Measure two values: the number of permanent cluster-admin grants that we remove, and the percentage of changes that have a full record.</p>
+</section>
+
+<footer>The cluster names, the allowlist, the IDs and the results on this page are examples.</footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  var fmt = function (n) { return n.toLocaleString("en-US"); };
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- sample fleet ---------- */
+  var REGIONS = ["east", "west", "central"], fleet = [];
+  for (var i = 0; i < 1040; i++) {
+    var env = i < 240 ? "dev" : i < 500 ? "test" : "prod";
+    var region = REGIONS[i % 3];
+    var platform = i % 10 < 7 ? "onprem" : i % 10 < 9 ? "azure" : "gcp";
+    fleet.push({ name: "ocp-" + env + "-" + region + "-" + ("00" + (i + 1)).slice(-4), env: env, region: region, platform: platform });
+  }
+
+  /* ---------- allowlist ---------- */
+  var KINDS = {
+    NetworkPolicy: { s: "ok", ns: true, cls: "network-policy" },
+    EgressFirewall: { s: "ok", ns: true, cls: "network-policy" },
+    ResourceQuota: { s: "ok", ns: true, cls: "quota" },
+    LimitRange: { s: "ok", ns: true, cls: "quota" },
+    ConfigMap: { s: "ok", ns: true, cls: "app-config" },
+    Subscription: { s: "gate", ns: true, cls: "operator-channel" },
+    MachineConfig: { s: "gate", ns: false, cls: "node-config" },
+    KubeletConfig: { s: "gate", ns: false, cls: "node-config" },
+    ClusterRoleBinding: { s: "no", why: "gives rights for the full cluster" },
+    ClusterRole: { s: "no", why: "sets rights for the full cluster" },
+    RoleBinding: { s: "no", why: "changes access rights" },
+    SecurityContextConstraints: { s: "no", why: "controls privileged workloads" },
+    Namespace: { s: "no", why: "this app does not create or delete namespaces" },
+    CustomResourceDefinition: { s: "no", why: "changes the cluster API" },
+    Secret: { s: "no", why: "this app does not move secrets" }
+  };
+
+  /* ---------- templates ---------- */
+  var TPL = {
+    netpol: {
+      fields: [["name", "Policy name", "allow-from-payments"], ["ns", "Namespace", "orders"], ["team", "Allow from team label", "payments"]],
+      build: function (v) {
+        return "apiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: " + v.name + "\n  namespace: " + v.ns +
+          "\nspec:\n  podSelector: {}\n  policyTypes:\n    - Ingress\n  ingress:\n    - from:\n        - namespaceSelector:\n            matchLabels:\n              team: " + v.team + "\n";
+      }
+    },
+    quota: {
+      fields: [["name", "Quota name", "team-quota"], ["ns", "Namespace", "orders"], ["cpu", "CPU requests", "40"], ["mem", "Memory requests", "96Gi"], ["pods", "Pods", "200"]],
+      build: function (v) {
+        return "apiVersion: v1\nkind: ResourceQuota\nmetadata:\n  name: " + v.name + "\n  namespace: " + v.ns +
+          "\nspec:\n  hard:\n    requests.cpu: \"" + v.cpu + "\"\n    requests.memory: " + v.mem + "\n    pods: \"" + v.pods + "\"\n";
+      }
+    },
+    raw: { fields: [], build: null }
+  };
+  var BLOCKED = "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\nmetadata:\n  name: temp-admin\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: ClusterRole\n  name: cluster-admin\nsubjects:\n  - kind: User\n    apiGroup: rbac.authorization.k8s.io\n    name: a.engineer\n";
+
+  /* ---------- state ---------- */
+  var state = { phase: "draft", mode: "set", sel: { env: ["dev"], region: [], platform: [] }, one: null, approvals: [], needed: 1, timer: null };
+  var last = null;
+
+  function renderFields() {
+    var t = TPL[$("tpl").value], box = $("fields");
+    box.textContent = "";
+    t.fields.forEach(function (f) {
+      var lab = el("label", "field", f[1]); lab.htmlFor = "f-" + f[0];
+      var inp = el("input"); inp.type = "text"; inp.id = "f-" + f[0]; inp.value = f[2]; inp.autocomplete = "off"; inp.spellcheck = false;
+      inp.addEventListener("input", function () { fillYaml(); changed(); });
+      lab.appendChild(inp); box.appendChild(lab);
+    });
+    box.hidden = !t.fields.length;
+  }
+  function fillYaml() {
+    var t = TPL[$("tpl").value]; if (!t.build) return;
+    var v = {}; t.fields.forEach(function (f) { v[f[0]] = $("f-" + f[0]).value.trim(); });
+    $("yaml").value = t.build(v);
+  }
+
+  /* ---------- parsing ---------- */
+  function parse(text) {
+    if (!text.trim()) return { err: "The manifest is empty." };
+    if (window.jsyaml) {
+      try {
+        var docs = window.jsyaml.loadAll(text).filter(function (d) { return d != null; });
+        if (!docs.length) return { err: "The manifest has no documents." };
+        if (docs.some(function (d) { return typeof d !== "object" || Array.isArray(d); })) return { err: "Each document must be a mapping." };
+        return { docs: docs };
+      } catch (e) { return { err: (e.reason || e.message || "Invalid YAML") + (e.mark ? " at line " + (e.mark.line + 1) : "") }; }
+    }
+    var out = text.split(/^---\s*$/m).filter(function (s) { return s.trim(); }).map(function (s) {
+      var g = function (re) { var m = s.match(re); return m ? m[1] : undefined; };
+      return { apiVersion: g(/^apiVersion:\s*(\S+)/m), kind: g(/^kind:\s*(\S+)/m), metadata: { name: g(/^ {2}name:\s*(\S+)/m), namespace: g(/^ {2}namespace:\s*(\S+)/m) } };
+    });
+    return { docs: out, basic: true };
+  }
+
+  /* ---------- targets ---------- */
+  function targets() {
+    if (state.mode === "one") return state.one ? [state.one] : [];
+    return fleet.filter(function (c) {
+      return ["env", "region", "platform"].every(function (k) { return !state.sel[k].length || state.sel[k].indexOf(c[k]) >= 0; });
+    });
+  }
+  function wavesFor(n) {
+    if (n <= 1) return n ? [1] : [];
+    if (n <= 10) return [1, n - 1];
+    var w2 = Math.ceil(n * 0.1); return [1, w2, n - 1 - w2];
+  }
+  function targetLabel() {
+    if (state.mode === "one") return state.one ? "cluster " + state.one.name : "none";
+    var parts = ["env", "region", "platform"].filter(function (k) { return state.sel[k].length; }).map(function (k) { return k + "=" + state.sel[k].join("|"); });
+    return parts.length ? parts.join(", ") : "all clusters";
+  }
+  function renderTarget() {
+    var t = targets(), s = $("target-summary"); s.textContent = "";
+    var b = el("b", null, fmt(t.length) + (t.length === 1 ? " cluster" : " clusters"));
+    s.appendChild(b);
+    var w = wavesFor(t.length);
+    var plan = !t.length ? "Select one cluster or more." :
+      w.length === 1 ? "The app applies the change in one step." :
+      "Waves: " + w.map(function (n, i) { return (i === 0 ? "canary " : "") + fmt(n); }).join(" → ") + ". Each wave must pass the health checks before the next wave starts.";
+    s.appendChild(el("span", "muted", plan));
+  }
+  function renderChips() {
+    var opts = { env: ["dev", "test", "prod"], region: REGIONS, platform: ["onprem", "azure", "gcp"] };
+    document.querySelectorAll(".chips").forEach(function (box) {
+      var k = box.getAttribute("data-group");
+      opts[k].forEach(function (v) {
+        var b = el("button", "chip", v); b.type = "button";
+        b.setAttribute("aria-pressed", state.sel[k].indexOf(v) >= 0 ? "true" : "false");
+        b.addEventListener("click", function () {
+          var i = state.sel[k].indexOf(v);
+          if (i >= 0) state.sel[k].splice(i, 1); else state.sel[k].push(v);
+          b.setAttribute("aria-pressed", i >= 0 ? "false" : "true");
+          changed();
+        });
+        box.appendChild(b);
+      });
+    });
+  }
+  function renderMatches() {
+    var q = $("cluster-search").value.trim().toLowerCase(), box = $("matches"); box.textContent = "";
+    var list = fleet.filter(function (c) { return !q || c.name.indexOf(q) >= 0; }).slice(0, 5);
+    if (!list.length) { box.appendChild(el("span", "small muted", "The search found no cluster.")); return; }
+    list.forEach(function (c) {
+      var b = el("button", null, c.name + "  ·  " + c.platform); b.type = "button";
+      b.setAttribute("aria-pressed", state.one === c ? "true" : "false");
+      b.addEventListener("click", function () { state.one = c; renderMatches(); changed(); });
+      box.appendChild(b);
+    });
+  }
+  function setMode(m) {
+    state.mode = m;
+    $("mode-set").setAttribute("aria-pressed", m === "set" ? "true" : "false");
+    $("mode-one").setAttribute("aria-pressed", m === "one" ? "true" : "false");
+    $("pane-set").hidden = m !== "set"; $("pane-one").hidden = m !== "one";
+    if (m === "one") renderMatches();
+    changed();
+  }
+
+  /* ---------- checks ---------- */
+  function runChecks() {
+    var out = [], p = parse($("yaml").value), docs = p.docs || [];
+    out.push(p.err ? { s: "no", t: "The manifest is valid YAML", d: p.err }
+      : { s: "ok", t: "The manifest is valid YAML", d: docs.length + (docs.length === 1 ? " document" : " documents") + (p.basic ? " (basic check)" : "") });
+
+    if (!p.err) {
+      var missing = docs.filter(function (d) { return !d.apiVersion || !d.kind || !d.metadata || !d.metadata.name; }).length;
+      out.push(missing ? { s: "no", t: "The necessary fields are present", d: "Each document must have apiVersion, kind and metadata.name." }
+        : { s: "ok", t: "The necessary fields are present", d: docs.map(function (d) { return d.kind + "/" + d.metadata.name; }).join(", ") });
+
+      var kinds = docs.map(function (d) { return String(d.kind || "?"); });
+      var bad = kinds.filter(function (k) { return !KINDS[k] || KINDS[k].s === "no"; });
+      var gated = kinds.filter(function (k) { return KINDS[k] && KINDS[k].s === "gate"; });
+      if (bad.length) out.push({ s: "no", t: "The kind is on the allowlist", d: bad.map(function (k) { return k + ": " + (KINDS[k] ? KINDS[k].why : "not an approved action class"); }).join("; ") });
+      else if (gated.length) out.push({ s: "gate", t: "The kind is on the allowlist", d: gated.join(", ") + " must have approval from a reviewer and a platform owner." });
+      else out.push({ s: "ok", t: "The kind is on the allowlist", d: kinds.join(", ") });
+
+      var nsBad = [];
+      docs.forEach(function (d) {
+        var k = KINDS[d.kind], ns = d.metadata && d.metadata.namespace;
+        if (k && k.ns && !ns) nsBad.push(d.kind + " must have a namespace");
+        if (ns && (/^(openshift|kube)(-|$)/.test(ns) || ns === "default")) nsBad.push(ns + " is a platform namespace");
+      });
+      out.push(nsBad.length ? { s: "no", t: "A tenant owns the namespace", d: nsBad.join("; ") }
+        : { s: "ok", t: "A tenant owns the namespace", d: "The manifest does not use openshift-*, kube-* or default namespaces." });
+      state.needed = gated.length ? 2 : 1;
+      state.kinds = kinds;
+      state.cls = kinds.map(function (k) { return KINDS[k] ? KINDS[k].cls : null; }).filter(function (c, i, a) { return c && a.indexOf(c) === i; });
+    }
+
+    var tk = $("ticket").value.trim();
+    out.push(/^(CHG|INC)\d{5,}$/i.test(tk) ? { s: "ok", t: "A change ticket is attached", d: tk.toUpperCase() }
+      : { s: "no", t: "A change ticket is attached", d: "Enter a ticket number, for example CHG0048213." });
+
+    var n = targets().length;
+    out.push(n ? { s: "ok", t: "A target is selected", d: fmt(n) + (n === 1 ? " cluster: " : " clusters: ") + targetLabel() }
+      : { s: "no", t: "A target is selected", d: "Select one cluster or a set of clusters." });
+    return out;
+  }
+  function renderChecks() {
+    var res = runChecks(), ul = $("checks"); ul.textContent = "";
+    var word = { ok: "pass", no: "blocked", gate: "more approval" };
+    res.forEach(function (r) {
+      var li = el("li"); li.appendChild(el("span", "pill " + r.s, word[r.s]));
+      var d = el("div", null, r.t); d.appendChild(el("small", null, r.d)); li.appendChild(d); ul.appendChild(li);
+    });
+    var blocked = res.filter(function (r) { return r.s === "no"; }).length;
+    $("submit").disabled = blocked > 0 || state.phase !== "draft";
+    $("submit-note").textContent = state.phase !== "draft" ? "The change is sent." : blocked ? blocked + (blocked === 1 ? " check stops" : " checks stop") + " this change." : "All checks pass.";
+  }
+
+  function changed() {
+    if (state.phase === "rolling") return;
+    if (state.phase !== "draft") resetApply();
+    renderTarget(); renderChecks();
+  }
+
+  /* ---------- approve and apply ---------- */
+  function resetApply() {
+    clearTimeout(state.timer);
+    state.phase = "draft"; state.approvals = [];
+    $("apply-idle").hidden = false; $("approve-box").hidden = true;
+    $("waves").hidden = true; $("roll-status").hidden = true;
+  }
+  function showApproval() {
+    var n = targets().length, left = state.needed - state.approvals.length;
+    $("apply-idle").hidden = true; $("approve-box").hidden = false;
+    $("approve-text").textContent = (state.kinds || []).join(", ") + " to " + fmt(n) + (n === 1 ? " cluster" : " clusters") + " (" + targetLabel() + "). " +
+      "The requester cannot approve this change. Approvals necessary: " + left + ".";
+    $("approve").textContent = state.approvals.length === 0 ? "Approve as second reviewer" : "Approve as platform owner";
+    $("fail-demo").parentNode.hidden = wavesFor(n).length < 2;
+  }
+  function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return ("0000000" + (h >>> 0).toString(16)).slice(-7); }
+
+  function rollout() {
+    state.phase = "rolling";
+    var t = targets(), w = wavesFor(t.length), fail = $("fail-demo").checked && w.length >= 2;
+    $("approve-box").hidden = true;
+    var box = $("waves"); box.textContent = ""; box.hidden = false;
+    var st = $("roll-status"); st.hidden = false; st.className = "status"; st.textContent = "The rollout is in progress.";
+    var rows = w.map(function (n, i) {
+      var r = el("div", "wave"), top = el("div", "top");
+      top.appendChild(el("span", null, "Wave " + (i + 1) + (i === 0 && w.length > 1 ? " · canary" : "") + " · " + fmt(n) + (n === 1 ? " cluster" : " clusters")));
+      var s = el("span", null, "in queue"); top.appendChild(s);
+      var bar = el("div", "bar"), fill = el("i"); bar.appendChild(fill);
+      r.appendChild(top); r.appendChild(bar); box.appendChild(r);
+      return { r: r, s: s, fill: fill, n: n };
+    });
+    var applied = 0;
+    function run(i) {
+      if (i >= rows.length) return finish("complete", applied, 0, null);
+      var row = rows[i], step = 0, steps = reduce ? 1 : 12;
+      (function tick() {
+        step++;
+        row.fill.style.width = Math.round(step / steps * 100) + "%";
+        row.s.textContent = fmt(Math.round(row.n * step / steps)) + " / " + fmt(row.n) + " applied";
+        if (step < steps) { state.timer = setTimeout(tick, 90); return; }
+        applied += row.n;
+        state.timer = setTimeout(function () {
+          if (fail && i === 1) {
+            row.r.classList.add("fail"); row.s.textContent = "the health check failed";
+            for (var j = i + 1; j < rows.length; j++) rows[j].s.textContent = "not started";
+            return finish("stopped", applied, t.length - applied, i + 1);
+          }
+          row.r.classList.add("pass"); row.s.textContent = "applied · healthy";
+          run(i + 1);
+        }, reduce ? 0 : 350);
+      })();
+    }
+    function finish(status, done, untouched, failedWave) {
+      state.phase = "done";
+      st.className = "status " + (status === "complete" ? "good" : "bad");
+      st.textContent = status === "complete" ? "The app applied the change to " + fmt(done) + (done === 1 ? " cluster." : " clusters.")
+        : "The rollout stopped at wave " + failedWave + ". The app did not change " + fmt(untouched) + " clusters. To remove the change from the other " + fmt(done) + " clusters, revert the commit.";
+      writeRecord(status, done, untouched, failedWave, w);
+    }
+    run(0);
+  }
+
+  function writeRecord(status, done, untouched, failedWave, w) {
+    var yaml = $("yaml").value, tk = $("ticket").value.trim().toUpperCase(), n = done + untouched;
+    var cls = (state.cls && state.cls.length ? state.cls : ["unclassified"]);
+    var lines = [
+      ["change", tk], ["action_class", cls.join(", ")], ["kinds", (state.kinds || []).join(", ")],
+      ["requested_by", "a.engineer"], ["approved_by", state.approvals.join(", ")],
+      ["manifest_hash", hash(yaml)], ["target", targetLabel() + " (" + fmt(n) + ")"],
+      ["dry_run", "server-side, pass (simulation)"],
+      ["applied_as", cls.map(function (c) { return "sa/fleet-apply-" + c; }).join(", ")],
+      ["waves", w.map(fmt).join(" / ")],
+      ["result", status === "complete" ? fmt(done) + " applied · 0 failed" : fmt(done) + " applied · wave " + failedWave + " failed the health check · " + fmt(untouched) + " not changed"],
+      ["status", status]
+    ];
+    last = lines.map(function (l) { return (l[0] + ":              ").slice(0, 15) + l[1]; }).join("\n");
+    $("record").textContent = last; $("record").hidden = false;
+    $("record-idle").hidden = true; $("record-actions").hidden = false;
+    var li = el("li");
+    li.appendChild(el("span", "pill " + (status === "complete" ? "ok" : "no"), status));
+    li.appendChild(el("span", "mono", tk));
+    li.appendChild(el("span", "muted", (state.kinds || []).join(", ") + " → " + targetLabel()));
+    $("log").insertBefore(li, $("log").firstChild);
+  }
+
+  /* ---------- wiring ---------- */
+  $("tpl").addEventListener("change", function () {
+    renderFields();
+    if ($("tpl").value === "raw") $("yaml").value = ""; else fillYaml();
+    changed();
+  });
+  $("yaml").addEventListener("input", changed);
+  $("ticket").addEventListener("input", changed);
+  $("load-blocked").addEventListener("click", function () { $("tpl").value = "raw"; renderFields(); $("yaml").value = BLOCKED; changed(); });
+  $("mode-set").addEventListener("click", function () { setMode("set"); });
+  $("mode-one").addEventListener("click", function () { setMode("one"); });
+  $("cluster-search").addEventListener("input", renderMatches);
+  $("submit").addEventListener("click", function () {
+    if ($("submit").disabled) return;
+    state.phase = "pending"; state.approvals = [];
+    renderChecks(); showApproval();
+  });
+  $("approve").addEventListener("click", function () {
+    state.approvals.push(state.approvals.length === 0 ? "b.reviewer" : "c.platform-owner");
+    if (state.approvals.length >= state.needed) rollout(); else showApproval();
+  });
+  $("reject").addEventListener("click", function () { resetApply(); renderChecks(); });
+  $("again").addEventListener("click", function () { resetApply(); renderChecks(); });
+  $("copy").addEventListener("click", function () {
+    var b = $("copy");
+    try {
+      navigator.clipboard.writeText(last || "").then(function () { b.textContent = "Copied"; }, function () { b.textContent = "Copy is not available"; });
+    } catch (e) { b.textContent = "Copy is not available"; }
+    setTimeout(function () { b.textContent = "Copy record"; }, 1800);
+  });
+
+  renderFields(); fillYaml(); renderChips(); renderTarget(); renderChecks();
+})();
+</script>
+</body>
+</html>
